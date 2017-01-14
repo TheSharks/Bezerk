@@ -1,7 +1,7 @@
 {
   "name": "bezerk",
   "version": "1.0.0",
-  "description": "WildBeast websocket mmanager",
+  "description": "WildBeast websocket manager",
   "main": "Bezerk.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
