@@ -12,4 +12,3 @@
 ---
 <h1 align="center"> Go bezerk!</h1>
 Bezerk is a stand-alone websocket manager for [WildBeast](https://github.com/TheSharks/WildBeast), spin it up, reconfigure WildBeast to connect to Bezerk and you're ready to go!
-

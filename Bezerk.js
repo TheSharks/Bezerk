@@ -20,9 +20,10 @@ BezerkWS.on('connection', (socket) => {
 
 function process (socket, message) {
   Logger('Attempting to process a message.')
+  Logger(message)
   let msg
   try {
-    JSON.parse(message)
+    msg = JSON.parse(message)
   } catch (e) {
     socket.close()
     Logger('Closing socket, invalid data received.')
@@ -105,9 +106,9 @@ function process (socket, message) {
       } else {
         Logger('Request accepted, attempting to send data to subscribed listeners.')
         for (let listener of receivers) {
-          if (listener.indexOf(msg.c) > -1) {
+          if (listener.subscriptions.indexOf(msg.op) > -1 && listener.readyState === 1) {
             Logger('Sending data.')
-            listener.send(msg)
+            listener.send(JSON.stringify(msg))
           }
         }
       }
