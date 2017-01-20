@@ -79,19 +79,19 @@ function process (socket, message) {
       Logger('Socket tried sending events without being identified first.')
       return
     }
-    if (socket.type === 'listener') {
+    if (socket.type === 'listener' || msg.op === 'EVAL') {
       if (msg.shard) {
         Logger('Listener event defined a shard, trying to find it and send the message.')
         for (let shard of shards) {
           if (shard.shardInfo[0] === msg.shard) {
             Logger('Shard found, sending payload.')
-            shard.send(msg)
+            shard.send(JSON.stringify(msg))
           }
         }
       } else {
         Logger('Listener event did not define a shard, falling back to sending to all shards.')
         for (let shard of shards) {
-          shard.send(msg)
+          shard.send(JSON.stringify(msg))
         }
       }
     } else {
