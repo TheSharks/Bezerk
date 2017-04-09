@@ -83,7 +83,7 @@ function process (socket, message) {
       if (msg.shard) {
         Logger('Listener event defined a shard, trying to find it and send the message.')
         for (let shard of shards) {
-          if (shard.shardInfo[0] === msg.shard) {
+          if (shard.shardInfo === msg.shard) {
             Logger('Shard found, sending payload.')
             shard.send(JSON.stringify(msg))
           }
@@ -106,7 +106,7 @@ function process (socket, message) {
       } else {
         Logger('Request accepted, attempting to send data to subscribed listeners.')
         for (let listener of receivers) {
-          if (listener.subscriptions.indexOf(msg.op) > -1 && listener.readyState === 1) {
+          if (listener.subscriptions.indexOf(msg.op) > -1 || listener.subscriptions.indexOf('*') > -1 && listener.readyState === 1) {
             Logger('Sending data.')
             listener.send(JSON.stringify(msg))
           }
