@@ -18,10 +18,22 @@ BezerkWS.on('connection', (socket) => {
   socket.on('message', (msg) => process(socket, msg))
 })
 
+setInterval(() => {
+  for (let socket of shards) {
+    if (socket.readyState !== 1) {
+      shards.splice(shards.indexOf(socket), 1)
+      send({
+        op: "SHARD_LEFT",
+        c: socket.shardInfo
+      })
+    }
+  }
+}, 1000)
+
 function process (socket, message) {
   Logger('Attempting to process a message.')
   Logger(message)
-  let msg
+  var msg
   try {
     msg = JSON.parse(message)
   } catch (e) {
@@ -35,16 +47,12 @@ function process (socket, message) {
   }
   if (msg.op === 'IDENTIFY_SHARD') {
     Logger('A socket is trying to connect as a shard.')
-    if (!msg.c) {
+    if (msg.c == undefined) {
       socket.close()
       Logger('Closing socket, no sharding info recieved.')
       return
     } else {
-      if (!Array.isArray(msg.c)) {
-        socket.close()
-        Logger('Closing connection, invalid sharding info')
-        return
-      } // We're assuming only wildbeast is going to connect to bezerk as a shard, so we are not going to check for valid data
+      // We're assuming only wildbeast is going to connect to bezerk as a shard, so we are not going to check for valid data
       Logger('Accepted shard.')
       socket.shardInfo = msg.c
       socket.type = 'shard'
@@ -52,6 +60,10 @@ function process (socket, message) {
       socket.send(JSON.stringify({
         op: 'OK'
       }))
+      send({
+        op: "SHARD_JOINED",
+        c: socket.shardInfo
+      })
     }
   } else if (msg.op === 'IDENTIFY_LISTENER') {
     Logger('A socket is trying to connect as a listener')
@@ -85,13 +97,13 @@ function process (socket, message) {
         for (let shard of shards) {
           if (shard.shardInfo === msg.shard) {
             Logger('Shard found, sending payload.')
-            shard.send(JSON.stringify(msg))
+            if (shard.readyState === 1) shard.send(JSON.stringify(msg))
           }
         }
       } else {
         Logger('Listener event did not define a shard, falling back to sending to all shards.')
         for (let shard of shards) {
-          shard.send(JSON.stringify(msg))
+          if (shard.readyState === 1) shard.send(JSON.stringify(msg))
         }
       }
     } else {
@@ -100,18 +112,28 @@ function process (socket, message) {
         Logger('Closing shard connection, no event passed.')
         return
       }
-      if (!msg.c) {
+      if (msg.c === undefined && msg.op !== 'EVAL_REPLY') {
         socket.close()
         Logger('Closing shard connection, no data.')
       } else {
         Logger('Request accepted, attempting to send data to subscribed listeners.')
         for (let listener of receivers) {
           if (listener.subscriptions.indexOf(msg.op) > -1 || listener.subscriptions.indexOf('*') > -1 && listener.readyState === 1) {
+            msg.shard = socket.shardInfo
             Logger('Sending data.')
             listener.send(JSON.stringify(msg))
           }
         }
       }
+    }
+  }
+}
+
+function send(msg) {
+  for (let listener of receivers) {
+    if (listener.subscriptions.indexOf(msg.op) > -1 || listener.subscriptions.indexOf('*') > -1 && listener.readyState === 1) {
+      Logger('Sending data.')
+      listener.send(JSON.stringify(msg))
     }
   }
 }
