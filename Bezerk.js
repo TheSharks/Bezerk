@@ -21,11 +21,18 @@ BezerkWS.on('connection', (socket) => {
 setInterval(() => {
   for (let socket of shards) {
     if (socket.readyState !== 1) {
+      Logger('A shard left')
       shards.splice(shards.indexOf(socket), 1)
       send({
         op: "SHARD_LEFT",
         c: socket.shardInfo
       })
+    }
+  }
+  for (let socket of receivers) {
+    if (socket.readyState !== 1) {
+      Logger('A listener left')
+      receivers.splice(receivers.indexOf(socket), 1)
     }
   }
 }, 1000)
