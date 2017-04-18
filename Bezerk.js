@@ -122,6 +122,14 @@ function process (socket, message) {
       if (msg.c === undefined && msg.op !== 'EVAL_REPLY') {
         socket.close()
         Logger('Closing shard connection, no data.')
+      } else if (msg.op === 'COUNT') {
+        send({
+          op: 'COUNT_REPLY',
+          c: {
+            shards: shards.length,
+            listeners: receivers.length
+          }
+        })
       } else {
         Logger('Request accepted, attempting to send data to subscribed listeners.')
         for (let listener of receivers) {
