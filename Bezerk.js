@@ -99,6 +99,15 @@ function process (socket, message) {
       return
     }
     if (socket.type === 'listener' || msg.op === 'EVAL') {
+      if (msg.op === 'COUNT') {
+        send({
+          op: 'COUNT_REPLY',
+          c: {
+            shards: shards.length,
+            listeners: receivers.length
+          }
+        })
+      }
       if (msg.shard) {
         Logger('Listener event defined a shard, trying to find it and send the message.')
         for (let shard of shards) {
