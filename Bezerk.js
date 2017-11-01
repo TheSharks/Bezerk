@@ -1,164 +1,86 @@
-const Debug = require('debug')
-const Logger = new Debug('bezerk')
-const WSS = require('ws').Server
-const Config = require('./config.json')
+const log = require('debug')('bezerk')
+const WS = require('ws')
+const Manager = require('./src/models/SocketManager')()
 
-let shards = []
-let receivers = []
-
-const BezerkWS = new WSS({
-  port: Config.port
+const Server = new WS.Server({
+  port: require('./config.json').port
 })
 
-BezerkWS.on('connection', (socket) => {
-  Logger('New websocket.')
-  socket.send(JSON.stringify({
-    op: 'HELLO'
-  }))
-  socket.on('message', (msg) => process(socket, msg))
+Server.on('connection', socket => {
+  log('New socket connected')
+  socket.on('message', m => process(socket, m))
+  identify(socket)
 })
-
-setInterval(() => {
-  for (let socket of shards) {
-    if (socket.readyState !== 1) {
-      Logger('A shard left')
-      shards.splice(shards.indexOf(socket), 1)
-      send({
-        op: "SHARD_LEFT",
-        c: socket.shardInfo
-      })
-    }
-  }
-  for (let socket of receivers) {
-    if (socket.readyState !== 1) {
-      Logger('A listener left')
-      receivers.splice(receivers.indexOf(socket), 1)
-    }
-  }
-}, 1000)
 
 function process (socket, message) {
-  Logger('Attempting to process a message.')
-  Logger(message)
-  var msg
+  let msg
   try {
     msg = JSON.parse(message)
   } catch (e) {
-    socket.close()
-    Logger('Closing socket, invalid data received.')
+    socket.close(4002) // unprocessable entity
   }
-  if (!msg.op) {
-    socket.close()
-    Logger('Closing socket, no OP code received.')
-    return
-  }
-  if (msg.op === 'IDENTIFY_SHARD') {
-    Logger('A socket is trying to connect as a shard.')
-    if (msg.c == undefined) {
-      socket.close()
-      Logger('Closing socket, no sharding info recieved.')
-      return
-    } else {
-      // We're assuming only wildbeast is going to connect to bezerk as a shard, so we are not going to check for valid data
-      Logger('Accepted shard.')
-      socket.shardInfo = msg.c
-      socket.type = 'shard'
-      shards.push(socket)
+  if (!socket.bezerk) { // this is either not a bezerk socket, or its uninitialized
+    if (socket.readyState === WS.OPEN) { // confirm we havent closed the socket
+      if (!msg.op || msg.op !== 20) return socket.close(4003) // invalid data
+      if (!msg.c || msg.c !== 'shard' || msg.c !== 'listener') return socket.close(4003)
+      if (!msg.d) return socket.close(4003)
+      if (msg.c === 'listener' && !Array.isArray(msg.d)) return socket.close(4003)
+      if (msg.c === 'shard' && typeof msg.d !== 'number') return socket.close(4003)
+      socket.bezerk = {type: msg.c}
+      (msg.c === 'listener') ? socket.bezerk.subscriptions = msg.d : socket.bezerk.shard = msg.d
+      log(`New socket is successfully authenticated as a ${msg.c}`)
+      Manager.add(socket)
       socket.send(JSON.stringify({
-        op: 'OK'
-      }))
-      send({
-        op: "SHARD_JOINED",
-        c: socket.shardInfo
-      })
-    }
-  } else if (msg.op === 'IDENTIFY_LISTENER') {
-    Logger('A socket is trying to connect as a listener')
-    if (!msg.c) {
-      socket.close()
-      Logger('Closing socket, no subscriptions.')
-      return
-    }
-    if (!Array.isArray(msg.c)) {
-      socket.close()
-      Logger('Closing socket, invalid subscriptions.')
-    } else {
-      Logger('Accepted listener')
-      socket.subscriptions = msg.c
-      socket.type = 'listener'
-      receivers.push(socket)
-      socket.send(JSON.stringify({
-        op: 'OK'
+        op: 11
       }))
     }
   } else {
-    // This is where it's going to get fun.
-    if (receivers.indexOf(socket) === -1 && shards.indexOf(socket) === -1) {
-      socket.close()
-      Logger('Socket tried sending events without being identified first.')
-      return
+    // this is a proper bezerk socket, continue
+    bezerkProcess(socket, msg)
+  }
+}
+
+function bezerkProcess (socket, packet) {
+  if (!socket.bezerk) return // PANIC!!!!
+  if (!packet.op) return socket.close(4003)
+  switch (packet.op) {
+    case 1: { // HEARTBEAT
+      Manager.touch(socket.bezerk)
+      socket.send(JSON.stringify({
+        op: 2
+      }))
+      break
     }
-    if (socket.type === 'listener' || msg.op === 'EVAL') {
-      if (msg.op === 'COUNT') {
-        send({
-          op: 'COUNT_REPLY',
-          c: {
-            shards: shards.length,
-            listeners: receivers.length
-          }
-        })
-      }
-      if (msg.shard) {
-        Logger('Listener event defined a shard, trying to find it and send the message.')
-        for (let shard of shards) {
-          if (shard.shardInfo === msg.shard) {
-            Logger('Shard found, sending payload.')
-            if (shard.readyState === 1) shard.send(JSON.stringify(msg))
-          }
+    case 21: { // DISPATCH
+      if (socket.bezerk.type !== 'shard') return socket.close(4004) // Invalid opcode
+      Manager.get('listener', packet.d).send(packet)
+      break
+    }
+    case 30: // REQUEST_USER
+    case 40: // REQUEST_GUILD
+    case 50: { // EVAL
+      if (socket.bezerk.type === 'listener') {
+        if (!packet.shard) {
+          let shards = Manager.getAll('shard')
+          shards.map(s => {
+            s.send(packet)
+          })
+        } else {
+          let shard = Manager.get('shard', packet.shard)
+          if (shard) shard.send(packet)
         }
       } else {
-        Logger('Listener event did not define a shard, falling back to sending to all shards.')
-        for (let shard of shards) {
-          if (shard.readyState === 1) shard.send(JSON.stringify(msg))
-        }
-      }
-    } else {
-      if (!msg.op) {
-        socket.close()
-        Logger('Closing shard connection, no event passed.')
-        return
-      }
-      if (msg.op === 'COUNT') {
-        send({
-          op: 'COUNT_REPLY',
-          c: {
-            shards: shards.length,
-            listeners: receivers.length
-          }
+        Manager.getAll('listeners').map(c => {
+          c.send(packet)
         })
-      }
-      if (msg.c === undefined && msg.op !== 'EVAL_REPLY' && msg.op !== 'COUNT') {
-        socket.close()
-        Logger('Closing shard connection, no data.')
-      } else {
-        Logger('Request accepted, attempting to send data to subscribed listeners.')
-        for (let listener of receivers) {
-          if (listener.subscriptions.indexOf(msg.op) > -1 || listener.subscriptions.indexOf('*') > -1 && listener.readyState === 1) {
-            msg.shard = socket.shardInfo
-            Logger('Sending data.')
-            listener.send(JSON.stringify(msg))
-          }
-        }
       }
     }
   }
 }
 
-function send(msg) {
-  for (let listener of receivers) {
-    if (listener.subscriptions.indexOf(msg.op) > -1 || listener.subscriptions.indexOf('*') > -1 && listener.readyState === 1) {
-      Logger('Sending data.')
-      listener.send(JSON.stringify(msg))
-    }
-  }
+function identify (socket) {
+  socket.send(JSON.stringify({
+    op: 10,
+    heartbeat_interval: 4750 // 250ms to account for jitter
+  }))
 }
