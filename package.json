@@ -21,7 +21,7 @@
     "ws": "^2.0.1"
   },
   "devDependencies": {
-    "eslint": "^3.13.1",
+    "eslint": "^4.1.0",
     "eslint-config-standard": "^8.0.0-beta.0",
     "eslint-plugin-promise": "^3.4.0",
     "eslint-plugin-standard": "^3.0.0"
