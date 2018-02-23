@@ -7,16 +7,19 @@ const Server = new WSS({
   port: process.env.BEZERK_PORT
 })
 
-const sockets = new Map()
-
 Server.on('connection', socket => {
   socket.on('message', msg => handle(socket, msg))
+  socket.on('close', () => {
+    console.log(Server.clients)
+  })
+  socket.on('error', console.error)
   send(socket, {
     op: '1001'
   })
 })
 
 function handle (socket, msg) {
+  if (socket.readyState !== 1) return
   try {
     msg = JSON.parse(msg)
     validate(socket, msg)
@@ -35,7 +38,7 @@ function handle (socket, msg) {
         })
         if (msg.c.shard) {
           socket.type = 'shard'
-          sockets.set(`shard:${msg.c.shard}`, socket)
+          socket.shardid = msg.c.shard
         } else {
           socket.type = 'listener'
         }
@@ -65,20 +68,21 @@ function handle (socket, msg) {
     case '2005': { // REQUEST_APPLY
       if (socket.type === 'listener') {
         if (msg.c.shard !== undefined) {
-          if (sockets.has(`shard:${msg.c.shard}`)) {
-            send(sockets.get(`shard:${msg.c.shard}`), {
-              op: '2001', // REQUEST
-              c: msg.c
-            })
-          } else {
-            send(socket, {
-              op: '5000' // CANNOT_COMPLY
-            })
-          }
+          Server.clients.forEach(x => {
+            if (x.type === 'shard' && x.shardid) {
+              return send(x, {
+                op: '2001', // REQUEST
+                c: msg.c
+              })
+            }
+          })
+          send(socket, {
+            op: '5000' // CANNOT_COMPLY
+          })
         } else {
-          sockets.forEach((value, key) => {
-            if (value.startsWith('shard:')) {
-              send(key, {
+          Server.clients.forEach(x => {
+            if (x.type === 'shard') {
+              send(x, {
                 op: '2001', // REQUEST
                 c: msg.c
               })
@@ -92,11 +96,13 @@ function handle (socket, msg) {
 }
 
 function send (socket, payload) {
+  if (socket.readyState !== 1) return
   if (typeof payload === 'object') payload = JSON.stringify(payload)
   socket.send(payload)
 }
 
 function validate (socket, msg) {
+  if (socket.readyState !== 1) return
   if (msg.op === undefined) throw new Error()
   if (msg.c === undefined) throw new Error()
   return true

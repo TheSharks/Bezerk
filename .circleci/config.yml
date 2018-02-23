@@ -1,0 +1,39 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: docker:latest
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Docker building
+          command: |
+            if [ "$CIRCLE_BRANCH" = "master" ]; then docker build -t dougley/bezerk:latest .; else docker build -t dougley/bezerk:$CIRCLE_BRANCH .; fi
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            if [ "$CIRCLE_BRANCH" = "master" ]; then docker push dougley/bezerk:latest; else docker push dougley/bezerk:$CIRCLE_BRANCH; fi
+  tagged-build:
+    docker:
+      - image: docker:latest
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Docker building
+          command: |
+            docker build -t dougley/bezerk:$(git describe --abbrev=0 --tags) .
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker push dougley/bezerk:$(git describe --abbrev=0 --tags)
+workflows:
+  version: 2
+  test_n_build:
+    jobs:
+      - build
+      - tagged-build:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /v.+/
