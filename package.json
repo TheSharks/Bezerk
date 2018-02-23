@@ -1,8 +1,8 @@
 {
   "name": "bezerk",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "WildBeast websocket manager",
-  "main": "Bezerk.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -17,13 +17,17 @@
   },
   "homepage": "https://github.com/TheSharks/Bezerk#readme",
   "dependencies": {
-    "debug": "^2.6.0",
-    "ws": "^2.0.1"
+    "debug": "^3.1.0",
+    "dotenv": "^5.0.0",
+    "ws": "^4.1.0"
   },
   "devDependencies": {
-    "eslint": "^4.1.0",
-    "eslint-config-standard": "^8.0.0-beta.0",
-    "eslint-plugin-promise": "^3.4.0",
-    "eslint-plugin-standard": "^3.0.0"
+    "eslint": "^4.16.0",
+    "eslint-config-standard": "^11.0.0-beta.0",
+    "eslint-plugin-import": "^2.9.0",
+    "eslint-plugin-node": "^6.0.0",
+    "eslint-plugin-promise": "^3.6.0",
+    "eslint-plugin-standard": "^3.0.1",
+    "standard": "^11.0.0"
   }
 }
