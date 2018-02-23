@@ -9,9 +9,7 @@ const Server = new WSS({
 
 Server.on('connection', socket => {
   socket.on('message', msg => handle(socket, msg))
-  socket.on('close', () => {
-    console.log(Server.clients)
-  })
+  socket.on('close', () => {})
   socket.on('error', console.error)
   send(socket, {
     op: '1001'
@@ -67,7 +65,7 @@ function handle (socket, msg) {
     }
     case '2005': { // REQUEST_APPLY
       if (socket.type === 'listener') {
-        if (msg.c.shard !== undefined) {
+        if (msg.d !== undefined) {
           Server.clients.forEach(x => {
             if (x.type === 'shard' && x.shardid) {
               return send(x, {
@@ -90,6 +88,12 @@ function handle (socket, msg) {
           })
         }
       }
+      break
+    }
+    case '5000': { // CANNOT_COMPLY
+      Server.clients.forEach(x => {
+        if (x.type !== socket.type) send(x, msg)
+      })
       break
     }
   }
