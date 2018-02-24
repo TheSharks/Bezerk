@@ -17,7 +17,6 @@
   },
   "homepage": "https://github.com/TheSharks/Bezerk#readme",
   "dependencies": {
-    "debug": "^3.1.0",
     "dotenv": "^5.0.0",
     "ws": "^4.1.0"
   },
