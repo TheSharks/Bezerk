@@ -25,6 +25,16 @@ function handle (socket, msg) {
     return socket.close(4001) // JSON_DECRYPT_ERROR
   }
   switch (msg.op) {
+    case '1050': { // COUNT
+      send(socket, {
+        op: '1051',
+        c: {
+          shards: Array.from(Server.clients).filter(x => x.type === 'shard').length,
+          listeners: Array.from(Server.clients).filter(x => x.type === 'listener').length
+        }
+      })
+      break
+    }
     case '1003': { // IDENTIFY_SUPPLY
       if (socket.type) return socket.close(4002) // ALREADY_AUTHENTICATED
       if (msg.c.secret === secret) {
