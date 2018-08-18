@@ -1,16 +1,16 @@
-<p style="text-align:center;">
-<img src="http://i.imgur.com/ChKIOlj.png"></p>
-
 <p align="center">
-<a href="http://nodejs.org"><img src="https://img.shields.io/badge/Node.js-6.9.1-blue.svg" alt="Node JS"></a>
-<a href="http://npmjs.com"><img src="https://img.shields.io/badge/npm-4.0.5-blue.svg" alt="npm"></a>
-<a><img src="https://img.shields.io/badge/Version-1.0.0-blue.svg" alt="Version"></a>
-<a href="https://discord.gg/0cFoiR5QVh5LZlQO"><img src="https://discordapp.com/api/guilds/110462143152803840/widget.png" alt="Discord server"></a>
-<br>
+    <img src="http://i.imgur.com/ChKIOlj.png">
+    <a href="https://discord.gg/0cFoiR5QVh5LZlQO"><img src="https://discordapp.com/api/guilds/110462143152803840/widget.png" alt="Discord server"></a>
 </p>
 
 ---
-<h1 align="center"> Go bezerk!</h1>
-Bezerk is a stand-alone websocket manager for [WildBeast](https://github.com/TheSharks/WildBeast), spin it up, reconfigure WildBeast to connect to Bezerk and you're ready to go!
 
-**Warning, Bezerk handles sensitive data, it's up to you to protect your Bezerk server.**
+Bezerk is a websocket-based server designed to remotely manage [WildBeast](https://github.com/TheSharks/WildBeast) instances by sending JavaScript instructions.   
+
+# Deployment
+Bezerk requires 2 environment variables to be present, namely `BEZERK_PORT`, and `BEZERK_SECRET`, please note that this program will output little to no console output.   
+`BEZERK_PORT` defines the port where the server should listen on, `BEZERK_SECRET` is a shared secret between listeners and WildBeast shards used for simple identification.   
+**It's important to choose a strong secret and keep it secure!**
+
+# Warnings
+Bezerk handles sensitive data and should be kept as secure as possible, malicious connections to Bezerk could result in arbitrary code execution in the context of your WildBeast shards.
